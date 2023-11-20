@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+
+  # microservices
+  backend:
+    build:
+      context: .
+    env_file: .env
+    ports:
+      - 80:80
+    depends_on:
+      - db
+      - migrate
+
+  # postgres database
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: $DB_NAME
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASSWORD
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "$DB_USER",
+          "-d",
+          "$DB_NAME"
+        ]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  # adminer
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # database migration
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migration/postgres:/migration
+    command: -source file://migration -database $MIGRATE_DATABASE up
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # clickhouse
+  click-db:
+    image: clickhouse/clickhouse-server
+    restart: always
+    environment:
+      - CLICKHOUSE_DB=$CLICKHOUSE_NAME
+      - CLICKHOUSE_USER=$CLICKHOUSE_USER
+      - CLICKHOUSE_PASSWORD=$CLICKHOUSE_PASSWORD
+
+  # database migration
+  click-migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migration/clickhouse:/migration
+    command: -source file://migration -database "${CLICKHOUSE_MIGRATE_DATABASE}" up
+    depends_on:
+      db:
+        condition: service_healthy
