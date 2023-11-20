@@ -37,3 +37,32 @@ func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*dom
 	}
 	return nil
 }
+
+func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*domain.MetricsProfileEntity, error) {
+	q := `
+		SELECT 
+			toDate(created_at) as date,
+			MIN(subscriptions) as subscriptions,
+			MIN(subscribers) as subscribers,
+			MIN(likes) as likes
+		FROM metrics 
+		WHERE shedevrum_id = '%s'
+		GROUP BY toDate(created_at)
+		ORDER BY toDate(created_at)
+    `
+	rows, err := r.db.Query(context.Background(), q, shedevrumID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	metrics := make([]*domain.MetricsProfileEntity, 0)
+	for rows.Next() {
+		m := &domain.MetricsProfileEntity{}
+		err := rows.Scan(&m.Date, &m.Subscriptions, &m.Subscribers, &m.Likes)
+		if err != nil {
+			return nil, err
+		}
+		metrics = append(metrics, m)
+	}
+	return metrics, nil
+}

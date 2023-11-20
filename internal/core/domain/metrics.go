@@ -10,3 +10,10 @@ type MetricsEntity struct {
 	Subscribers   uint64    `db:"subscribers" json:"subscribers"`
 	Likes         uint64    `db:"likes" json:"likes"`
 }
+
+type MetricsProfileEntity struct {
+	Date          time.Time `db:"date" json:"date"`
+	Subscriptions uint64    `db:"subscriptions" json:"subscriptions"`
+	Subscribers   uint64    `db:"subscribers" json:"subscribers"`
+	Likes         uint64    `db:"likes" json:"likes"`
+}
