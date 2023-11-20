@@ -65,9 +65,9 @@ func (s *MetricsService) sheduler() {
 
 func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
 	const op = "services.MetricsService.collectSocialStats"
-	s.logger.Info("run_social_stats_collector", "op", op)
+	const collectorPullSize = 100
 
-	collectorPullSize := 50
+	s.logger.Info("run_social_stats_collector", "op", op)
 
 	var (
 		queue             = make(chan struct{}, 30)

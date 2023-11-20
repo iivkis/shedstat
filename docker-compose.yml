@@ -58,6 +58,8 @@ services:
   click-db:
     image: clickhouse/clickhouse-server
     restart: always
+    ports:
+      - 9000:9000
     environment:
       - CLICKHOUSE_DB=$CLICKHOUSE_NAME
       - CLICKHOUSE_USER=$CLICKHOUSE_USER
