@@ -67,6 +67,8 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 	const op = "services.MetricsService.collectSocialStats"
 	s.logger.Info("run_social_stats_collector", "op", op)
 
+	collectorPullSize := 50
+
 	var (
 		queue             = make(chan struct{}, 30)
 		startFromID       int
@@ -76,9 +78,9 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 	defer close(queue)
 
 	for {
-		socialStats = make([]*domain.MetricsEntity, 0, 1000)
+		socialStats = make([]*domain.MetricsEntity, 0, collectorPullSize)
 
-		profiles, err := s.svcProfile.GetList(ctx, startFromID, 1000)
+		profiles, err := s.svcProfile.GetList(ctx, startFromID, collectorPullSize)
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
@@ -101,7 +103,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 
 				queue <- struct{}{}
 
-				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID)
+				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID, "collected", atomic.LoadUint64(&metricSheduleStat.ProfileHandledTotal))
 				stat, err := s.shedAPI.Users.GetSocialStats(p.ShedevrumID)
 				if err != nil {
 					atomic.AddUint64(&metricSheduleStat.ProfileHandledBad, 1)

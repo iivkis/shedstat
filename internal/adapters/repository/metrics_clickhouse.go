@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"shedstat/internal/core/domain"
-	"strconv"
 	"strings"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -27,13 +27,8 @@ func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*dom
 	`
 	values := make([]string, 0, len(metrics))
 	for _, m := range metrics {
-		values = append(values, "("+
-			m.ShedevrumID+","+
-			strconv.FormatUint(m.Subscriptions, 10)+","+
-			strconv.FormatUint(m.Subscribers, 10)+","+
-			strconv.FormatUint(m.Likes, 10)+","+
-			"NOW()"+
-			")",
+		values = append(values,
+			fmt.Sprintf("(%d, '%s', %d, %d, %d, NOW())", m.ProfileID, m.ShedevrumID, m.Subscriptions, m.Subscribers, m.Likes),
 		)
 	}
 	err := r.db.Exec(ctx, q+strings.Join(values, ", "))
