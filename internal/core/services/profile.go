@@ -34,7 +34,7 @@ func NewProfileService(
 }
 
 func (s *ProfileService) shedulerFeedTopDay() {
-	for range time.Tick(time.Second) {
+	for {
 		profileCollectorFeedTopDay, err := s.repoProfileCollector.GetLastCollectedAt(domain.PROFILE_COLLECTOR_COLLECTOR_TYPE_FEED_TOP_DAY)
 		if err != nil {
 			s.logger.Error(err.Error())
@@ -46,6 +46,8 @@ func (s *ProfileService) shedulerFeedTopDay() {
 				s.logger.Error(err.Error())
 			}
 		}
+
+		time.Sleep(time.Minute * 10)
 	}
 }
 

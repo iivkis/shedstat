@@ -42,7 +42,7 @@ func NewMetricsService(
 
 func (s *MetricsService) sheduler() {
 	const op = "services.MetricsService.sheduler"
-	for range time.Tick(time.Second) {
+	for {
 		lastMetricShedule, err := s.repoMetricsCollector.GetLast(context.Background())
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
@@ -60,6 +60,8 @@ func (s *MetricsService) sheduler() {
 				}
 			}
 		}
+
+		time.Sleep(time.Minute * 10)
 	}
 }
 
