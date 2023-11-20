@@ -15,26 +15,26 @@ import (
 )
 
 type MetricsService struct {
-	logger             *slog.Logger
-	repoMetrics        *repository.MetricsClickHouseRepository
-	repoMetricsShedule *repository.MetricsShedulePostgresRepository
-	svcProfile         *ProfileService
-	shedAPI            *shedevrumapi.ShedevrumAPI
+	logger               *slog.Logger
+	repoMetrics          *repository.MetricsClickHouseRepository
+	repoMetricsCollector *repository.MetricsCollectorPostgresRepository
+	svcProfile           *ProfileService
+	shedAPI              *shedevrumapi.ShedevrumAPI
 }
 
 func NewMetricsService(
 	logger *slog.Logger,
 	repoMetrics *repository.MetricsClickHouseRepository,
-	repoMetricsShedule *repository.MetricsShedulePostgresRepository,
+	repoMetricsCollector *repository.MetricsCollectorPostgresRepository,
 	svcProfile *ProfileService,
 	shedAPI *shedevrumapi.ShedevrumAPI,
 ) *MetricsService {
 	svc := &MetricsService{
-		logger:             logger,
-		repoMetrics:        repoMetrics,
-		repoMetricsShedule: repoMetricsShedule,
-		svcProfile:         svcProfile,
-		shedAPI:            shedAPI,
+		logger:               logger,
+		repoMetrics:          repoMetrics,
+		repoMetricsCollector: repoMetricsCollector,
+		svcProfile:           svcProfile,
+		shedAPI:              shedAPI,
 	}
 	go svc.sheduler()
 	return svc
@@ -43,7 +43,7 @@ func NewMetricsService(
 func (s *MetricsService) sheduler() {
 	const op = "services.MetricsService.sheduler"
 	for range time.Tick(time.Minute) {
-		lastMetricShedule, err := s.repoMetricsShedule.GetLast(context.Background())
+		lastMetricShedule, err := s.repoMetricsCollector.GetLast(context.Background())
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				s.logger.Error(err.Error(), "op", op)
@@ -54,7 +54,7 @@ func (s *MetricsService) sheduler() {
 			if err != nil {
 				s.logger.Error(err.Error(), "op", op)
 			} else {
-				if err := s.repoMetricsShedule.Create(context.Background(), metricShedule); err != nil {
+				if err := s.repoMetricsCollector.Create(context.Background(), metricShedule); err != nil {
 					s.logger.Error(err.Error(), "op", op)
 				}
 			}
@@ -62,19 +62,19 @@ func (s *MetricsService) sheduler() {
 	}
 }
 
-func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.MetricSheduleEntity, error) {
+func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
 	const op = "services.MetricsService.collectSocialStats"
 
 	var (
 		queue             = make(chan struct{}, 30)
 		startFromID       int
-		socialStats       []*domain.MetricEntity
-		metricSheduleStat domain.MetricSheduleEntity
+		socialStats       []*domain.MetricsEntity
+		metricSheduleStat domain.MetricsCollectorEntity
 	)
 	defer close(queue)
 
 	for {
-		socialStats = make([]*domain.MetricEntity, 0, 1000)
+		socialStats = make([]*domain.MetricsEntity, 0, 1000)
 
 		profiles, err := s.svcProfile.GetList(ctx, startFromID, 1000)
 		if err != nil {
@@ -105,7 +105,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 					s.logger.Error(err.Error(), "op", op)
 				} else {
 					atomic.AddUint64(&metricSheduleStat.ProfileHandledSuccess, 1)
-					socialStats = append(socialStats, &domain.MetricEntity{
+					socialStats = append(socialStats, &domain.MetricsEntity{
 						ProfileID:     p.ID,
 						ShedevrumID:   p.ShedevrumID,
 						Subscriptions: stat.Subscriptions,

@@ -19,7 +19,7 @@ func NewMetricsClickHouseRepository(db clickhouse.Conn) *MetricsClickHouseReposi
 	}
 }
 
-func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*domain.MetricEntity) error {
+func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*domain.MetricsEntity) error {
 	q := `
 	INSERT INTO
 		metrics 
