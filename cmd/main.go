@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	_, err = repository.NewDBClickHouse(&clickhouse.Options{
+	clicdb, err := repository.NewDBClickHouse(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%s", config.Get().ClickHouse.Host, config.Get().ClickHouse.Port)},
 		Auth: clickhouse.Auth{
 			Database: config.Get().DB.Name,
@@ -45,6 +45,14 @@ func main() {
 		logger,
 		repository.NewProfilePostgresRepository(pgdb),
 		repository.NewProfileCollectorPostgresRepository(pgdb),
+		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
+	)
+
+	services.NewMetricsService(
+		logger,
+		repository.NewMetricsClickHouseRepository(clicdb),
+		repository.NewMetricsCollectorPostgresRepository(pgdb),
+		svcProfile,
 		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
 	)
 

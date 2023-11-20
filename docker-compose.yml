@@ -10,8 +10,8 @@ services:
     ports:
       - 80:80
     depends_on:
-      - db
       - migrate
+      - click-migrate
 
   # postgres database
   db:
@@ -70,5 +70,5 @@ services:
       - ./migration/clickhouse:/migration
     command: -source file://migration -database "${CLICKHOUSE_MIGRATE_DATABASE}" up
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully

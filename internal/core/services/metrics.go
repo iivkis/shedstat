@@ -42,11 +42,12 @@ func NewMetricsService(
 
 func (s *MetricsService) sheduler() {
 	const op = "services.MetricsService.sheduler"
-	for range time.Tick(time.Minute) {
+	for range time.Tick(time.Second) {
 		lastMetricShedule, err := s.repoMetricsCollector.GetLast(context.Background())
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				s.logger.Error(err.Error(), "op", op)
+				continue
 			}
 		}
 		if errors.Is(err, sql.ErrNoRows) || lastMetricShedule.CreatedAt.Add(time.Hour*8).Before(time.Now()) {
@@ -64,6 +65,7 @@ func (s *MetricsService) sheduler() {
 
 func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
 	const op = "services.MetricsService.collectSocialStats"
+	s.logger.Info("run_social_stats_collector", "op", op)
 
 	var (
 		queue             = make(chan struct{}, 30)
@@ -99,6 +101,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 
 				queue <- struct{}{}
 
+				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID)
 				stat, err := s.shedAPI.Users.GetSocialStats(p.ShedevrumID)
 				if err != nil {
 					atomic.AddUint64(&metricSheduleStat.ProfileHandledBad, 1)
@@ -117,6 +120,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 		}
 		wg.Wait()
 
+		s.logger.Info("push_profile_social_stats", "op", op, "count", len(socialStats))
 		if err := s.repoMetrics.Create(ctx, socialStats); err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err

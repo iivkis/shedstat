@@ -34,7 +34,7 @@ func NewProfileService(
 }
 
 func (s *ProfileService) shedulerFeedTopDay() {
-	for range time.Tick(time.Minute) {
+	for range time.Tick(time.Second) {
 		profileCollectorFeedTopDay, err := s.repoProfileCollector.GetLastCollectedAt(domain.PROFILE_COLLECTOR_COLLECTOR_TYPE_FEED_TOP_DAY)
 		if err != nil {
 			s.logger.Error(err.Error())
@@ -42,12 +42,16 @@ func (s *ProfileService) shedulerFeedTopDay() {
 		}
 		if !profileCollectorFeedTopDay.Valid || profileCollectorFeedTopDay.Time.Add(time.Hour*24).Before(time.Now()) {
 			s.collectProfileFromFeedTopDay()
+			if err := s.repoProfileCollector.UpdateLastCollectedAt(domain.PROFILE_COLLECTOR_COLLECTOR_TYPE_FEED_TOP_DAY); err != nil {
+				s.logger.Error(err.Error())
+			}
 		}
 	}
 }
 
 func (s *ProfileService) collectProfileFromFeedTopDay() {
 	const op = "services.ProfileService.collectProfileFromTopDay"
+	s.logger.Info("run_profile_from_feed_top_day_collector", "op", op)
 	for startFrom := ""; ; {
 		feed, err := s.shedAPI.Feed.GetTop(shedevrumapi.FEED_TOP_PERIOD_DAY, 100, startFrom)
 		if err != nil {
@@ -55,10 +59,16 @@ func (s *ProfileService) collectProfileFromFeedTopDay() {
 			break
 		}
 		for _, post := range feed.Posts {
+			s.logger.Info("check_if_profile_exists", "op", op, "shedevrum_id", post.User.ID)
 			if exists, _ := s.repoProfile.ExistsByShedevrumID(context.Background(), post.User.ID); !exists {
-				if err := s.repoProfile.Create(context.Background(), &domain.ProfileEnity{
-					ShedevrumID: post.User.ID,
-				}); err != nil {
+				s.logger.Info("add_new_profile", "op", op, "shedevrum_id", post.User.ID)
+				if err := s.repoProfile.Create(
+					context.Background(),
+					&domain.ProfileEnity{
+						ShedevrumID: post.User.ID,
+						Link:        post.User.ShareLink,
+					},
+				); err != nil {
 					s.logger.Error(err.Error(), "op", op)
 				}
 			}

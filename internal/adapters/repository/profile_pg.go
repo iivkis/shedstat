@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"shedstat/internal/core/domain"
 
 	"github.com/jmoiron/sqlx"
@@ -26,8 +28,7 @@ func (r *ProfilePostgresRepository) Create(ctx context.Context, profile *domain.
 		)
 		VALUES ($1, $2)
 	`
-	var p domain.ProfileEnity
-	err := r.db.GetContext(ctx, &p, q, profile.ShedevrumID, profile.Link)
+	_, err := r.db.ExecContext(ctx, q, profile.ShedevrumID, profile.Link)
 	if err != nil {
 		return err
 	}
@@ -65,10 +66,13 @@ func (r *ProfilePostgresRepository) GetList(ctx context.Context, startFromID int
 }
 
 func (r *ProfilePostgresRepository) ExistsByShedevrumID(ctx context.Context, shedevrumID string) (bool, error) {
-	q := `SELECT EXISTS(*) FROM profile WHERE shedevrum_id = $1`
+	q := `SELECT EXISTS(SELECT id FROM profile WHERE shedevrum_id = $1)`
 	var exists bool
 	err := r.db.GetContext(ctx, &exists, q, shedevrumID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, err
 	}
 	return exists, nil
