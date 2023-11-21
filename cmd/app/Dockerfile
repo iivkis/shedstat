@@ -8,4 +8,4 @@ RUN go mod download
 
 COPY . /app/
 
-CMD ["go", "run", "./cmd"]
+CMD ["go", "run", "./cmd/app"]

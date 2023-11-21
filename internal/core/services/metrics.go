@@ -18,7 +18,7 @@ type MetricsService struct {
 	logger               *slog.Logger
 	repoMetrics          *repository.MetricsClickHouseRepository
 	repoMetricsCollector *repository.MetricsCollectorPostgresRepository
-	svcProfile           *ProfileService
+	repoProfile          *repository.ProfilePostgresRepository
 	shedAPI              *shedevrumapi.ShedevrumAPI
 }
 
@@ -26,14 +26,14 @@ func NewMetricsService(
 	logger *slog.Logger,
 	repoMetrics *repository.MetricsClickHouseRepository,
 	repoMetricsCollector *repository.MetricsCollectorPostgresRepository,
-	svcProfile *ProfileService,
+	repoProfile *repository.ProfilePostgresRepository,
 	shedAPI *shedevrumapi.ShedevrumAPI,
 ) *MetricsService {
 	svc := &MetricsService{
 		logger:               logger,
 		repoMetrics:          repoMetrics,
 		repoMetricsCollector: repoMetricsCollector,
-		svcProfile:           svcProfile,
+		repoProfile:          repoProfile,
 		shedAPI:              shedAPI,
 	}
 	go svc.sheduler()
@@ -72,7 +72,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 	s.logger.Info("run_social_stats_collector", "op", op)
 
 	var (
-		queue             = make(chan struct{}, 30)
+		queue             = make(chan struct{}, 10)
 		startFromID       int
 		socialStats       []*domain.MetricsEntity
 		metricSheduleStat domain.MetricsCollectorEntity
@@ -82,7 +82,7 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 	for {
 		socialStats = make([]*domain.MetricsEntity, 0, collectorPullSize)
 
-		profiles, err := s.svcProfile.GetList(ctx, startFromID, collectorPullSize)
+		profiles, err := s.repoProfile.GetList(ctx, startFromID, collectorPullSize)
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
@@ -95,7 +95,6 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 		wg := &sync.WaitGroup{}
 		for _, p := range profiles {
 			wg.Add(1)
-			metricSheduleStat.ProfileHandledTotal += 1
 
 			go func(p *domain.ProfileEnity) {
 				defer func() {
@@ -104,6 +103,8 @@ func (s *MetricsService) collectSocialStats(ctx context.Context) (*domain.Metric
 				}()
 
 				queue <- struct{}{}
+
+				atomic.AddUint64(&metricSheduleStat.ProfileHandledTotal, 1)
 
 				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID, "collected", atomic.LoadUint64(&metricSheduleStat.ProfileHandledTotal))
 				stat, err := s.shedAPI.Users.GetSocialStats(p.ShedevrumID)

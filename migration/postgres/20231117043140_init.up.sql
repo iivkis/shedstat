@@ -1,8 +1,7 @@
 CREATE TABLE profile (
     id BIGSERIAL NOT NULL PRIMARY KEY,
     shedevrum_id VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    link VARCHAR(255)
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TYPE collector_type as ENUM('feed_top_day');

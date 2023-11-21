@@ -19,16 +19,15 @@ func NewProfilePostgresRepository(db *sqlx.DB) *ProfilePostgresRepository {
 	}
 }
 
-func (r *ProfilePostgresRepository) Create(ctx context.Context, profile *domain.ProfileEnity) error {
+func (r *ProfilePostgresRepository) Create(ctx context.Context, shedevrumID string) error {
 	q := `
 		INSERT INTO
 		profile (
-			shedevrum_id,
-			link
+			shedevrum_id
 		)
-		VALUES ($1, $2)
+		VALUES ($1)
 	`
-	_, err := r.db.ExecContext(ctx, q, profile.ShedevrumID, profile.Link)
+	_, err := r.db.ExecContext(ctx, q, shedevrumID)
 	if err != nil {
 		return err
 	}

@@ -38,7 +38,7 @@ func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*dom
 	return nil
 }
 
-func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*domain.MetricsProfileEntity, error) {
+func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*domain.MetricsChartEntity, error) {
 	q := `
 		SELECT 
 			toDate(created_at) as date,
@@ -55,10 +55,29 @@ func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*d
 		return nil, err
 	}
 	defer rows.Close()
-	metrics := make([]*domain.MetricsProfileEntity, 0)
+	metrics := make([]*domain.MetricsChartEntity, 0)
 	for rows.Next() {
-		m := &domain.MetricsProfileEntity{}
+		m := &domain.MetricsChartEntity{}
 		err := rows.Scan(&m.Date, &m.Subscriptions, &m.Subscribers, &m.Likes)
+		if err != nil {
+			return nil, err
+		}
+		metrics = append(metrics, m)
+	}
+	return metrics, nil
+}
+
+func (r *MetricsClickHouseRepository) GetTop(ctx context.Context, filter domain.MetricsGetTopFilter, amount int) ([]*domain.MetricsEntity, error) {
+	q := `SELECT DISTINCT ON(profile_id) * FROM metrics ORDER BY toDate(created_at) DESC, $1 DESC LIMIT $2`
+	rows, err := r.db.Query(ctx, q, filter, amount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	metrics := make([]*domain.MetricsEntity, amount)
+	for rows.Next() {
+		m := &domain.MetricsEntity{}
+		err := rows.Scan(&m.ProfileID, &m.ShedevrumID, &m.Subscriptions, &m.Subscribers, &m.Likes)
 		if err != nil {
 			return nil, err
 		}

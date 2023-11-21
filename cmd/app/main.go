@@ -15,6 +15,12 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+/*
+	/profile/:id
+	/profile/:id/metrics
+	/top?filter=[subscriptions,subscibers,likes]&amount[0-100]
+*/
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
@@ -29,7 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	clicdb, err := repository.NewDBClickHouse(&clickhouse.Options{
+	clickdb, err := repository.NewDBClickHouse(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%s", config.Get().ClickHouse.Host, config.Get().ClickHouse.Port)},
 		Auth: clickhouse.Auth{
 			Database: config.Get().DB.Name,
@@ -41,18 +47,24 @@ func main() {
 		panic(err)
 	}
 
+	repoProfile := repository.NewProfilePostgresRepository(pgdb)
+	repoProfileCollector := repository.NewProfileCollectorPostgresRepository(pgdb)
+	repoMetrics := repository.NewMetricsClickHouseRepository(clickdb)
+	repoMetricsCollector := repository.NewMetricsCollectorPostgresRepository(pgdb)
+
 	svcProfile := services.NewProfileService(
 		logger,
-		repository.NewProfilePostgresRepository(pgdb),
-		repository.NewProfileCollectorPostgresRepository(pgdb),
+		repoProfile,
+		repoProfileCollector,
+		repoMetrics,
 		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
 	)
 
 	services.NewMetricsService(
 		logger,
-		repository.NewMetricsClickHouseRepository(clicdb),
-		repository.NewMetricsCollectorPostgresRepository(pgdb),
-		svcProfile,
+		repoMetrics,
+		repoMetricsCollector,
+		repoProfile,
 		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
 	)
 

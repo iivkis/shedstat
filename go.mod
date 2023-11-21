@@ -8,6 +8,7 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/spf13/viper v1.17.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
