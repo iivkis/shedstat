@@ -274,19 +274,42 @@ func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]
 
 func (s *ProfileService) GetTop(ctx context.Context, filter domain.ProfileMetrics_GetTopFilter, amount int) ([]*domain.ProfileEnity, error) {
 	const op = "services.ProfileService.GetTop"
-	list, err := s.repoProfileMetrics.GetTop(ctx, filter, amount)
-	if err != nil {
-		s.logger.Error(err.Error(), "op", op)
-		return nil, err
-	}
-	profiles := make([]*domain.ProfileEnity, 0, len(list))
-	for _, p := range list {
-		profile, err := s.GetByShedevrumID(ctx, p.ShedevrumID)
+	cachedTopProfilesID := fmt.Sprintf("top_profiles_%s", string(filter))
+
+	var topProfiles []*domain.ProfileEnity
+
+	if cachedTopProfiles, ok := s.cache.Get(cachedTopProfilesID); ok {
+		topProfiles = cachedTopProfiles.([]*domain.ProfileEnity)
+	} else {
+		list, err := s.repoProfileMetrics.GetTop(ctx, filter, amount)
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
 		}
-		profiles = append(profiles, profile)
+
+		topProfiles = make([]*domain.ProfileEnity, len(list))
+		wg, queue := &sync.WaitGroup{}, make(chan struct{}, 15)
+
+		wg.Add(len(list))
+		for i, p := range list {
+			go func(i int, p *domain.ProfileMetricsEntity) {
+				defer func() {
+					<-queue
+					wg.Done()
+				}()
+				queue <- struct{}{}
+				profile, err := s.GetByShedevrumID(ctx, p.ShedevrumID)
+				if err != nil {
+					s.logger.Error(err.Error(), "op", op)
+					profile = &domain.ProfileEnity{}
+				}
+				topProfiles[i] = profile
+			}(i, p)
+		}
+		wg.Wait()
+
+		s.cache.Set(cachedTopProfilesID, topProfiles, 0)
 	}
-	return profiles, nil
+
+	return topProfiles, nil
 }
