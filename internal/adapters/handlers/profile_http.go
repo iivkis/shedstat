@@ -73,3 +73,10 @@ func (h *ProfileHTTPHandler) GetMetrics(w http.ResponseWriter, r *http.Request) 
 	}
 	json.NewEncoder(w).Encode(metrics)
 }
+
+type ProfileGetTop struct {
+}
+
+func (h *ProfileHTTPHandler) GetTop(w http.ResponseWriter, r *http.Request) {
+
+}

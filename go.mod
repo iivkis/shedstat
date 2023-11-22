@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.15.0
 	github.com/go-chi/chi/v5 v5.0.10
+	github.com/go-chi/cors v1.2.1
 	github.com/goccy/go-json v0.10.2
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/jmoiron/sqlx v1.3.5

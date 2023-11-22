@@ -19,7 +19,7 @@ func NewMetricsCollectorPostgresRepository(db *sqlx.DB) *MetricsCollectorPostgre
 
 func (r *MetricsCollectorPostgresRepository) Create(ctx context.Context, entity *domain.MetricsCollectorEntity) error {
 	q := `
-		INSERT INTO metrics_collector (
+		INSERT INTO profile_metrics_collector (
             profile_handled_total,
             profile_handled_success,
             profile_handled_bad
@@ -34,7 +34,7 @@ func (r *MetricsCollectorPostgresRepository) Create(ctx context.Context, entity 
 
 func (r *MetricsCollectorPostgresRepository) GetLast(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
 	q := `
-		SELECT * FROM metrics_collector ORDER BY id DESC LIMIT 1
+		SELECT * FROM profile_metrics_collector ORDER BY id DESC LIMIT 1
 	`
 	var entity domain.MetricsCollectorEntity
 	if err := r.db.GetContext(ctx, &entity, q); err != nil {

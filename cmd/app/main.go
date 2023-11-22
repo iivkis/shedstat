@@ -12,6 +12,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"golang.org/x/exp/slog"
 )
 
@@ -24,7 +25,7 @@ import (
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	pgdb, err := repository.NewDBPostgres(repository.DBPostgresSource{
+	postgresDB, err := repository.NewDBPostgres(repository.DBPostgresSource{
 		Name:     config.Get().DB.Name,
 		Host:     config.Get().DB.Host,
 		Port:     config.Get().DB.Port,
@@ -35,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	clickdb, err := repository.NewDBClickHouse(&clickhouse.Options{
+	clickhouseDB, err := repository.NewDBClickHouse(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%s", config.Get().ClickHouse.Host, config.Get().ClickHouse.Port)},
 		Auth: clickhouse.Auth{
 			Database: config.Get().DB.Name,
@@ -47,32 +48,35 @@ func main() {
 		panic(err)
 	}
 
-	repoProfile := repository.NewProfilePostgresRepository(pgdb)
-	repoProfileCollector := repository.NewProfileCollectorPostgresRepository(pgdb)
-	repoMetrics := repository.NewMetricsClickHouseRepository(clickdb)
-	repoMetricsCollector := repository.NewMetricsCollectorPostgresRepository(pgdb)
+	repoProfile := repository.NewProfilePostgresRepository(postgresDB)
+	repoProfileCollector := repository.NewProfileCollectorPostgresRepository(postgresDB)
+	repoProfileMetrics := repository.NewMetricsClickHouseRepository(clickhouseDB)
+	repoProfileMetricsCollector := repository.NewMetricsCollectorPostgresRepository(postgresDB)
 
 	svcProfile := services.NewProfileService(
 		logger,
 		repoProfile,
 		repoProfileCollector,
-		repoMetrics,
-		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
-	)
-
-	services.NewMetricsService(
-		logger,
-		repoMetrics,
-		repoMetricsCollector,
-		repoProfile,
+		repoProfileMetrics,
+		repoProfileMetricsCollector,
 		shedevrumapi.NewShedevrumAPI(shedevrumapi.Config{}),
 	)
 
 	router := chi.NewRouter()
+	router.Use(newCorsHandler())
 	handlers.NewProfileHTTPHandler(svcProfile).Setup(router)
 
 	fmt.Println("server is up")
 	if err := http.ListenAndServe(":80", router); err != nil {
 		panic(err)
 	}
+}
+
+func newCorsHandler() func(http.Handler) http.Handler {
+	return cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+	})
 }

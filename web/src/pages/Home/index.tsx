@@ -1,5 +1,13 @@
-import React from "react"
-import { useState } from "react"
+import React, { useState } from "react"
+import { IProfile, IMetricsChart } from "../../interfaces.d"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis, Tooltip } from "recharts"
+
+import {
+    ValueType,
+    NameType,
+} from 'recharts/types/component/DefaultTooltipContent';
+
+import { TooltipProps } from 'recharts';
 
 interface ITopProfile {
     name: string
@@ -10,7 +18,7 @@ interface ITopProfile {
 }
 
 export function Home() {
-    var [link, setLink] = useState("https://www.google.com")
+    var [link, setLink] = useState("")
     var [topList, setTopList] = useState<ITopProfile[]>([
         {
             name: "🍹🥤🧃САМЫЙ СОК🧃🥤🍹",
@@ -84,19 +92,222 @@ export function Home() {
         },
     ])
 
-    function formatNumber(num: number): string {
-        return num.toLocaleString(
-            undefined,
-            {
-                maximumFractionDigits: 3,
-            },
-        )
+
+    var [profile, setProfile] = useState<IProfile>()
+
+    var [metricsChart, setMetricsChart] = useState<IMetricsChart[]>([
+        {
+            date: "01.01",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.02",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.03",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.04",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.05",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.06",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.07",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.08",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.09",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.10",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.11",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.12",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.01",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.02",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.03",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.04",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.05",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.06",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.07",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.08",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.09",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+        {
+            date: "01.10",
+            likes: 10,
+            subscribers: 1000,
+            subscriptions: 2000
+        },
+        {
+            date: "01.11",
+            likes: 100,
+            subscribers: 1500,
+            subscriptions: 2000
+        },
+        {
+            date: "01.24",
+            likes: 220,
+            subscribers: 1400,
+            subscriptions: 2240
+        },
+    ])
+
+
+    function loadProfile(event: React.FormEvent) {
+        event.preventDefault()
+        fetch(`http://localhost:80/profile/${link}`)
+            .then(res => res.json())
+            .then(res => setProfile(res))
+        fetch(`http://localhost:80/profile/${link}/metrics`)
+            .then(res => res.json())
+            .then((res: IMetricsChart[]) => {
+                res.forEach((item) => {
+                    let d = new Date(item.date)
+                    item.date = `${d.getMonth().toString().padStart(2, '0')}.${d.getDay().toString().padStart(2, '0')}`
+                })
+                setMetricsChart(res)
+            })
     }
+
+    function formatNumber(num: number | ValueType | undefined): string {
+        if (typeof num === 'number') {
+            return num.toLocaleString('en-US')
+        }
+        return ""
+    }
+
+    function getCustomTooltipLabel(label: string | number | undefined): string {
+        if (label === "subscriptions")
+            return "Подписки"
+        if (label === "subscribers")
+            return "Подписчиков"
+        if (label === "likes")
+            return "Лайки"
+        return ""
+    }
+
+    const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white border-2 border-gray-100 p-2">
+                    <p className="font-bold">{payload[0].payload.date}</p>
+                    {
+                        payload.map((entry, index) => {
+                            return (
+                                <div key={index} className="w-full">
+                                    <div className="flex">
+                                        <div style={{ color: entry.color }}>
+                                            {getCustomTooltipLabel(entry.dataKey)}:
+                                        </div>
+                                        <div className="text-gray-600 ml-1">
+                                            {formatNumber(entry.value)}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })
+                    }
+                </div>
+            );
+        }
+
+        return null;
+    };
 
     return (
         <div className="w-2/5 flex flex-wrap justify-center mt-24 mx-auto">
             <span className='w-full text-center text-2xl' style={{ fontFamily: 'HandelGothic TL' }}>Шедеврум Статистика</span>
-            <form className='w-full flex justify-center mt-20' onSubmit={(e) => { e.preventDefault(); alert(link) }}>
+            <form className='w-full flex justify-center mt-20' onSubmit={loadProfile}>
                 <input
                     value={link}
                     className="w-full text-lg border-2 border-yellow-300 p-3 rounded-xl outline-none"
@@ -104,13 +315,74 @@ export function Home() {
                     onChange={(e) => { setLink(e.target.value) }}
                 />
             </form>
-            <p className="w-full mt-10 text-lg text-justify">
-                Шедеврум Статистика - это незаменимый инструмент для сервиса Шедеврум, который поможет вам получать детальную информацию о росте вашего профиля в течение определенного времени. С его помощью вы сможете отслеживать ключевые метрики, которые помогут вам анализировать эффективность вашего аккаунта.
-            </p>
+            {
+                !profile?.id &&
+                <p className="w-full mt-10 text-lg text-justify">
+                    Шедеврум Статистика - это незаменимый инструмент для сервиса Шедеврум, который поможет вам получать детальную информацию о росте вашего профиля в течение определенного времени. С его помощью вы сможете отслеживать ключевые метрики, которые помогут вам анализировать эффективность вашего аккаунта.
+                </p>
+            }
+            {
+                profile?.id &&
+                <div className="w-full flex flex-wrap mt-5">
+                    <div className="w-full flex justify-center mt-5">
+                        <img src={profile.avatar_url} className="rounded-full w-24 h-24" />
+                    </div>
+                    <div className="w-full flex justify-center mt-5">
+                        <span className="text-3xl font-bold tracking-tight">{profile.name}</span>
+                    </div>
+                    <div className="w-full flex justify-center mt-5">
+                        <div className="flex flex-wrap text-center">
+                            <span className="w-full text-xl font-bold">
+                                {formatNumber(profile.subscriptions)}
+                            </span>
+                            <span className="w-full font-bold text-sm text-gray-600">
+                                подписки
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap text-center">
+                            <span className="w-full text-xl font-bold">
+                                {formatNumber(profile.subscribers)}
+                            </span>
+                            <span className="w-full font-bold text-sm text-gray-600">
+                                подписчиков
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap text-center">
+                            <span className="w-full text-xl font-bold">
+                                {formatNumber(profile.likes)}
+                            </span>
+                            <span className="w-full font-bold text-sm text-gray-600">
+                                лайки
+                            </span>
+                        </div>
+                    </div>
+                    <LineChart width={760} height={300} margin={{ top: 10, right: 10, bottom: 10, left: 10 }} data={metricsChart}>
+                        <CartesianGrid stroke="#ddd" strokeDasharray="3 3" />
+                        <Tooltip content={<CustomTooltip />}></Tooltip>
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Line type="monotone" dataKey="subscriptions" stroke="#303f9f" />
+                    </LineChart>
+                    <LineChart width={760} height={300} margin={{ top: 10, right: 10, bottom: 10, left: 10 }} data={metricsChart}>
+                        <CartesianGrid stroke="#ddd" strokeDasharray="3 3" />
+                        <Tooltip content={<CustomTooltip />}></Tooltip>
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Line type="monotone" dataKey="subscribers" stroke="#00796b" />
+                    </LineChart>
+                    <LineChart width={760} height={300} margin={{ top: 10, right: 10, bottom: 10, left: 10 }} data={metricsChart}>
+                        <CartesianGrid stroke="#ddd" strokeDasharray="3 3" />
+                        <Tooltip content={<CustomTooltip />}></Tooltip>
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Line type="monotone" dataKey="likes" stroke="#d32f2f" />
+                    </LineChart>
+                </div>
+            }
 
-            <hr className="w-4/5 mt-10 mb-5" />
-
-            <div className="w-full flex flex-wrap">
+            <hr className="w-4/5 mt-5" />
+{/* 
+            <div className="w-full flex flex-wrap my-5">
                 {
                     topList.map((item, index) => {
                         return (
@@ -130,7 +402,7 @@ export function Home() {
                         )
                     })
                 }
-            </div>
+            </div> */}
         </div>
     )
 }

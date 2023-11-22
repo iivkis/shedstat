@@ -14,7 +14,7 @@ CREATE TABLE profile_collector (
 
 INSERT INTO profile_collector (collector_type) VALUES ('feed_top_day');
 
-CREATE TABLE metrics_collector (
+CREATE TABLE profile_metrics_collector (
     id BIGSERIAL NOT NULL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     profile_handled_total INT NOT NULL,

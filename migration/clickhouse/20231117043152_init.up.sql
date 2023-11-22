@@ -1,4 +1,4 @@
-CREATE TABLE metrics (
+CREATE TABLE profile_metrics (
     profile_id INT,
     shedevrum_id VARCHAR(255),
     subscriptions UInt64,
