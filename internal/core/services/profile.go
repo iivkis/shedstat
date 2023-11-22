@@ -79,7 +79,7 @@ func (s *ProfileService) profileMetricsAssemblyScheduling() {
 
 func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.ProfileMetricsCollectorEntity, error) {
 	const op = "services.ProfileService.profileMetricsCollect"
-	const collectorPullSize = 100
+	const pullSize = 100
 
 	s.logger.Info("run_social_stats_collector", "op", op)
 
@@ -92,9 +92,9 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Pro
 	defer close(queue)
 
 	for {
-		socialStats = make([]*domain.ProfileMetricsEntity, 0, collectorPullSize)
+		socialStats = make([]*domain.ProfileMetricsEntity, 0, pullSize)
 
-		profiles, err := s.repoProfile.GetList(ctx, startFromID, collectorPullSize)
+		profiles, err := s.repoProfile.GetList(ctx, startFromID, pullSize)
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
