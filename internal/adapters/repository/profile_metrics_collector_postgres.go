@@ -7,17 +7,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type MetricsCollectorPostgresRepository struct {
+type ProfileMetricsCollectorPostgresRepository struct {
 	db *sqlx.DB
 }
 
-func NewMetricsCollectorPostgresRepository(db *sqlx.DB) *MetricsCollectorPostgresRepository {
-	return &MetricsCollectorPostgresRepository{
+func NewProfileMetricsCollectorPostgresRepository(db *sqlx.DB) *ProfileMetricsCollectorPostgresRepository {
+	return &ProfileMetricsCollectorPostgresRepository{
 		db: db,
 	}
 }
 
-func (r *MetricsCollectorPostgresRepository) Create(ctx context.Context, entity *domain.MetricsCollectorEntity) error {
+func (r *ProfileMetricsCollectorPostgresRepository) Create(ctx context.Context, entity *domain.ProfileMetricsCollectorEntity) error {
 	q := `
 		INSERT INTO profile_metrics_collector (
             profile_handled_total,
@@ -32,11 +32,11 @@ func (r *MetricsCollectorPostgresRepository) Create(ctx context.Context, entity 
 	return nil
 }
 
-func (r *MetricsCollectorPostgresRepository) GetLast(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
+func (r *ProfileMetricsCollectorPostgresRepository) GetLast(ctx context.Context) (*domain.ProfileMetricsCollectorEntity, error) {
 	q := `
 		SELECT * FROM profile_metrics_collector ORDER BY id DESC LIMIT 1
 	`
-	var entity domain.MetricsCollectorEntity
+	var entity domain.ProfileMetricsCollectorEntity
 	if err := r.db.GetContext(ctx, &entity, q); err != nil {
 		return nil, err
 	}

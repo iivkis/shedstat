@@ -20,8 +20,8 @@ type ProfileService struct {
 	logger                      *slog.Logger
 	repoProfile                 *repository.ProfilePostgresRepository
 	repoProfileCollector        *repository.ProfileCollectorPostgresRepository
-	repoProfileMetrics          *repository.MetricsClickHouseRepository
-	repoProfileMetricsCollector *repository.MetricsCollectorPostgresRepository
+	repoProfileMetrics          *repository.ProfileMetricsClickHouseRepository
+	repoProfileMetricsCollector *repository.ProfileMetricsCollectorPostgresRepository
 	shedAPI                     *shedevrumapi.ShedevrumAPI
 	cache                       *cache.Cache
 }
@@ -30,8 +30,8 @@ func NewProfileService(
 	logger *slog.Logger,
 	repoProfile *repository.ProfilePostgresRepository,
 	repoProfileCollector *repository.ProfileCollectorPostgresRepository,
-	repoProfileMetrics *repository.MetricsClickHouseRepository,
-	repoProfileMetricsCollector *repository.MetricsCollectorPostgresRepository,
+	repoProfileMetrics *repository.ProfileMetricsClickHouseRepository,
+	repoProfileMetricsCollector *repository.ProfileMetricsCollectorPostgresRepository,
 	shedAPI *shedevrumapi.ShedevrumAPI,
 ) *ProfileService {
 	svc := &ProfileService{
@@ -53,7 +53,7 @@ func (s *ProfileService) runSchedulers() {
 }
 
 func (s *ProfileService) profileMetricsAssemblyScheduling() {
-	const op = "services.MetricsService.sheduler"
+	const op = "services.ProfileService.profileMetricsAssemblyScheduling"
 	for {
 		lastMetricShedule, err := s.repoProfileMetricsCollector.GetLast(context.Background())
 		if err != nil {
@@ -77,8 +77,8 @@ func (s *ProfileService) profileMetricsAssemblyScheduling() {
 	}
 }
 
-func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.MetricsCollectorEntity, error) {
-	const op = "services.MetricsService.collectSocialStats"
+func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.ProfileMetricsCollectorEntity, error) {
+	const op = "services.ProfileService.profileMetricsCollect"
 	const collectorPullSize = 100
 
 	s.logger.Info("run_social_stats_collector", "op", op)
@@ -86,13 +86,13 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Met
 	var (
 		queue             = make(chan struct{}, 10)
 		startFromID       int
-		socialStats       []*domain.MetricsEntity
-		metricSheduleStat domain.MetricsCollectorEntity
+		socialStats       []*domain.ProfileMetricsEntity
+		metricSheduleStat domain.ProfileMetricsCollectorEntity
 	)
 	defer close(queue)
 
 	for {
-		socialStats = make([]*domain.MetricsEntity, 0, collectorPullSize)
+		socialStats = make([]*domain.ProfileMetricsEntity, 0, collectorPullSize)
 
 		profiles, err := s.repoProfile.GetList(ctx, startFromID, collectorPullSize)
 		if err != nil {
@@ -125,7 +125,7 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Met
 					s.logger.Error(err.Error(), "op", op)
 				} else {
 					atomic.AddUint64(&metricSheduleStat.ProfileHandledSuccess, 1)
-					socialStats = append(socialStats, &domain.MetricsEntity{
+					socialStats = append(socialStats, &domain.ProfileMetricsEntity{
 						ProfileID:     p.ID,
 						ShedevrumID:   p.ShedevrumID,
 						Subscriptions: stat.Subscriptions,
@@ -148,25 +148,25 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Met
 }
 
 func (s *ProfileService) profilesAssemblyScheduling() {
+	const op = "services.ProfileService.profilesAssemblyScheduling"
 	for {
 		profileCollectorFeedTopDay, err := s.repoProfileCollector.GetLastCollectedAt(domain.PROFILE_COLLECTOR_COLLECTOR_TYPE_FEED_TOP_DAY)
 		if err != nil {
-			s.logger.Error(err.Error())
+			s.logger.Error(err.Error(), "op", op)
 			continue
 		}
 		if !profileCollectorFeedTopDay.Valid || profileCollectorFeedTopDay.Time.Add(time.Hour*24).Before(time.Now()) {
 			s.topDayProfilesCollect()
 			if err := s.repoProfileCollector.UpdateLastCollectedAt(domain.PROFILE_COLLECTOR_COLLECTOR_TYPE_FEED_TOP_DAY); err != nil {
-				s.logger.Error(err.Error())
+				s.logger.Error(err.Error(), "op", op)
 			}
 		}
-
 		time.Sleep(time.Minute * 1)
 	}
 }
 
 func (s *ProfileService) topDayProfilesCollect() {
-	const op = "services.ProfileService.collectProfileFromTopDay"
+	const op = "services.ProfileService.topDayProfilesCollect"
 	s.logger.Info("run_profile_from_feed_top_day_collector", "op", op)
 	for startFrom := ""; ; {
 		feed, err := s.shedAPI.Feed.GetTop(shedevrumapi.FEED_TOP_PERIOD_DAY, 100, startFrom)
@@ -190,16 +190,30 @@ func (s *ProfileService) topDayProfilesCollect() {
 }
 
 func (s *ProfileService) Create(ctx context.Context, shedevrumID string) error {
-	return s.repoProfile.Create(ctx, shedevrumID)
+	const op = "services.ProfileService.Create"
+	if err := s.repoProfile.Create(ctx, shedevrumID); err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil
+	}
+	return nil
 }
 
 func (s *ProfileService) Get(ctx context.Context, id int) (*domain.ProfileEnity, error) {
-	return s.repoProfile.GetByID(ctx, id)
+	const op = "services.ProfileService.Get"
+	profile, err := s.repoProfile.GetByID(ctx, id)
+	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil, err
+	}
+	return profile, nil
 }
 
 func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID string) (*domain.ProfileEnity, error) {
+	const op = "services.ProfileService.GetByShedevrumID"
+
 	profile, err := s.repoProfile.GetByShedevrumID(ctx, shedevrumID)
 	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
 		return nil, err
 	}
 
@@ -216,6 +230,7 @@ func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID strin
 	} else {
 		remoteProfile, err := s.shedAPI.Users.GetFeed(shedevrumID, 0, "")
 		if err != nil {
+			s.logger.Error(err.Error(), "op", op)
 			return nil, err
 		}
 		profile.Name = remoteProfile.User.DisplayName
@@ -224,6 +239,7 @@ func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID strin
 
 		remoteSocialStats, err := s.shedAPI.Users.GetSocialStats(shedevrumID)
 		if err != nil {
+			s.logger.Error(err.Error(), "op", op)
 			return nil, err
 		}
 		profile.Subscriptions = remoteSocialStats.Subscriptions
@@ -237,22 +253,37 @@ func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID strin
 }
 
 func (s *ProfileService) GetList(ctx context.Context, startFromID int, amount int) ([]*domain.ProfileEnity, error) {
-	return s.repoProfile.GetList(ctx, startFromID, amount)
-}
-
-func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]*domain.MetricsChartEntity, error) {
-	return s.repoProfileMetrics.GetByShedevrumID(shedevrumID)
-}
-
-func (s *ProfileService) GetTop(ctx context.Context, filter domain.MetricsGetTopFilter, amount int) ([]*domain.ProfileEnity, error) {
-	topList, err := s.repoProfileMetrics.GetTop(ctx, filter, amount)
+	const op = "services.ProfileService.GetList"
+	profiles, err := s.repoProfile.GetList(ctx, startFromID, amount)
 	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
 		return nil, err
 	}
-	profiles := make([]*domain.ProfileEnity, 0, len(topList))
-	for _, p := range topList {
+	return profiles, nil
+}
+
+func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]*domain.ProfileMetricsEntity, error) {
+	const op = "services.ProfileService.GetMetrics"
+	metrics, err := s.repoProfileMetrics.GetByShedevrumID(shedevrumID)
+	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil, err
+	}
+	return metrics, nil
+}
+
+func (s *ProfileService) GetTop(ctx context.Context, filter domain.ProfileMetrics_GetTopFilter, amount int) ([]*domain.ProfileEnity, error) {
+	const op = "services.ProfileService.GetTop"
+	list, err := s.repoProfileMetrics.GetTop(ctx, filter, amount)
+	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil, err
+	}
+	profiles := make([]*domain.ProfileEnity, 0, len(list))
+	for _, p := range list {
 		profile, err := s.GetByShedevrumID(ctx, p.ShedevrumID)
 		if err != nil {
+			s.logger.Error(err.Error(), "op", op)
 			return nil, err
 		}
 		profiles = append(profiles, profile)

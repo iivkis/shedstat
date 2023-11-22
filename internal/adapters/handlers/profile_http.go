@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"shedstat/internal/core/domain"
 	"shedstat/internal/core/services"
 
 	"github.com/go-chi/chi/v5"
@@ -74,9 +75,10 @@ func (h *ProfileHTTPHandler) GetMetrics(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(metrics)
 }
 
-type ProfileGetTop struct {
-}
-
 func (h *ProfileHTTPHandler) GetTop(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	qFilter := query.Get("filter")
 
+	var filter domain.ProfileMetrics_GetTopFilter
+	filter.Scan(qFilter)
 }

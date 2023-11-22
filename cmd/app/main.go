@@ -50,8 +50,8 @@ func main() {
 
 	repoProfile := repository.NewProfilePostgresRepository(postgresDB)
 	repoProfileCollector := repository.NewProfileCollectorPostgresRepository(postgresDB)
-	repoProfileMetrics := repository.NewMetricsClickHouseRepository(clickhouseDB)
-	repoProfileMetricsCollector := repository.NewMetricsCollectorPostgresRepository(postgresDB)
+	repoProfileMetrics := repository.NewProfileMetricsClickHouseRepository(clickhouseDB)
+	repoProfileMetricsCollector := repository.NewProfileMetricsCollectorPostgresRepository(postgresDB)
 
 	svcProfile := services.NewProfileService(
 		logger,

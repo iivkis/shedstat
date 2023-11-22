@@ -9,17 +9,17 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
-type MetricsClickHouseRepository struct {
+type ProfileMetricsClickHouseRepository struct {
 	db clickhouse.Conn
 }
 
-func NewMetricsClickHouseRepository(db clickhouse.Conn) *MetricsClickHouseRepository {
-	return &MetricsClickHouseRepository{
+func NewProfileMetricsClickHouseRepository(db clickhouse.Conn) *ProfileMetricsClickHouseRepository {
+	return &ProfileMetricsClickHouseRepository{
 		db: db,
 	}
 }
 
-func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*domain.MetricsEntity) error {
+func (r *ProfileMetricsClickHouseRepository) Create(ctx context.Context, metrics []*domain.ProfileMetricsEntity) error {
 	q := `
 	INSERT INTO
 		profile_metrics 
@@ -38,13 +38,13 @@ func (r *MetricsClickHouseRepository) Create(ctx context.Context, metrics []*dom
 	return nil
 }
 
-func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*domain.MetricsChartEntity, error) {
+func (r *ProfileMetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*domain.ProfileMetricsEntity, error) {
 	q := `
 		SELECT 
-			toDate(created_at) as date,
-			MIN(subscriptions) as subscriptions,
-			MIN(subscribers) as subscribers,
-			MIN(likes) as likes
+			toDate(created_at),
+			MIN(subscriptions),
+			MIN(subscribers),
+			MIN(likes)
 		FROM profile_metrics 
 		WHERE shedevrum_id = $1
 		GROUP BY toDate(created_at)
@@ -55,10 +55,12 @@ func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*d
 		return nil, err
 	}
 	defer rows.Close()
-	metrics := make([]*domain.MetricsChartEntity, 0)
+	metrics := make([]*domain.ProfileMetricsEntity, 0)
 	for rows.Next() {
-		m := &domain.MetricsChartEntity{}
-		if err := rows.Scan(&m.Date, &m.Subscriptions, &m.Subscribers, &m.Likes); err != nil {
+		m := &domain.ProfileMetricsEntity{
+			ShedevrumID: shedevrumID,
+		}
+		if err := rows.Scan(&m.CreatedAt, &m.Subscriptions, &m.Subscribers, &m.Likes); err != nil {
 			return nil, err
 		}
 		metrics = append(metrics, m)
@@ -66,16 +68,16 @@ func (r *MetricsClickHouseRepository) GetByShedevrumID(shedevrumID string) ([]*d
 	return metrics, nil
 }
 
-func (r *MetricsClickHouseRepository) GetTop(ctx context.Context, filter domain.MetricsGetTopFilter, amount int) ([]*domain.MetricsEntity, error) {
+func (r *ProfileMetricsClickHouseRepository) GetTop(ctx context.Context, filter domain.ProfileMetrics_GetTopFilter, amount int) ([]*domain.ProfileMetricsEntity, error) {
 	q := `SELECT DISTINCT ON(profile_id) * FROM profile_metrics ORDER BY toDate(created_at) DESC, $1 DESC LIMIT $2`
 	rows, err := r.db.Query(ctx, q, filter, amount)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	metrics := make([]*domain.MetricsEntity, amount)
+	metrics := make([]*domain.ProfileMetricsEntity, amount)
 	for rows.Next() {
-		m := &domain.MetricsEntity{}
+		m := &domain.ProfileMetricsEntity{}
 		err := rows.Scan(&m.ProfileID, &m.ShedevrumID, &m.Subscriptions, &m.Subscribers, &m.Likes)
 		if err != nil {
 			return nil, err
