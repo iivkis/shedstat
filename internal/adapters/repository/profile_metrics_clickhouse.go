@@ -68,8 +68,8 @@ func (r *ProfileMetricsClickHouseRepository) GetByShedevrumID(shedevrumID string
 	return metrics, nil
 }
 
-func (r *ProfileMetricsClickHouseRepository) GetTop(ctx context.Context, filter domain.ProfileMetrics_GetTopFilter, amount int) ([]*domain.ProfileMetricsEntity, error) {
-	q := `SELECT DISTINCT ON(profile_id) * FROM profile_metrics ORDER BY toDate(created_at) DESC, ` + string(filter) + ` DESC LIMIT $1`
+func (r *ProfileMetricsClickHouseRepository) GetTop(ctx context.Context, sort domain.ProfileMetrics_GetTopSort, amount int) ([]*domain.ProfileMetricsEntity, error) {
+	q := `SELECT DISTINCT ON(profile_id) * FROM profile_metrics ORDER BY toDate(created_at) DESC, ` + string(sort) + ` DESC LIMIT $1`
 	rows, err := r.db.Query(ctx, q, amount)
 	if err != nil {
 		return nil, err

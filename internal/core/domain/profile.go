@@ -46,15 +46,15 @@ type ProfileMetricsEntity struct {
 	Likes         uint64    `db:"likes" json:"likes"`
 }
 
-type ProfileMetrics_GetTopFilter string
+type ProfileMetrics_GetTopSort string
 
 const (
-	PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIPTIONS ProfileMetrics_GetTopFilter = "subscriptions"
-	PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIBERS   ProfileMetrics_GetTopFilter = "subscribers"
-	PROFILE_METRICS_GET_TOP_FILTER_LIKES         ProfileMetrics_GetTopFilter = "likes"
+	PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIPTIONS ProfileMetrics_GetTopSort = "subscriptions"
+	PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIBERS   ProfileMetrics_GetTopSort = "subscribers"
+	PROFILE_METRICS_GET_TOP_FILTER_LIKES         ProfileMetrics_GetTopSort = "likes"
 )
 
-func (f *ProfileMetrics_GetTopFilter) Scan(value string) {
+func (f *ProfileMetrics_GetTopSort) Scan(value string) {
 	switch value {
 	case string(PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIPTIONS):
 		*f = PROFILE_METRICS_GET_TOP_FILTER_SUBSCRIPTIONS

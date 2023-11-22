@@ -78,12 +78,12 @@ func (h *ProfileHTTPHandler) GetMetrics(w http.ResponseWriter, r *http.Request) 
 
 func (h *ProfileHTTPHandler) GetTop(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	qFilter := query.Get("filter")
+	qSort := query.Get("sort")
 
-	var filter domain.ProfileMetrics_GetTopFilter
-	filter.Scan(qFilter)
+	var sort domain.ProfileMetrics_GetTopSort
+	sort.Scan(qSort)
 
-	profiles, err := h.svc.GetTop(r.Context(), filter, 100)
+	profiles, err := h.svc.GetTop(r.Context(), sort, 100)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

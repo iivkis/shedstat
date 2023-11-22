@@ -62,7 +62,7 @@ func (s *ProfileService) profileMetricsAssemblyScheduling() {
 				continue
 			}
 		}
-		if errors.Is(err, sql.ErrNoRows) || lastMetricShedule.CreatedAt.Add(time.Hour*8).Before(time.Now()) {
+		if errors.Is(err, sql.ErrNoRows) || lastMetricShedule.CreatedAt.Add(time.Hour*12).Before(time.Now()) {
 			metricShedule, err := s.profileMetricsCollect(context.Background())
 			if err != nil {
 				s.logger.Error(err.Error(), "op", op)
@@ -72,7 +72,6 @@ func (s *ProfileService) profileMetricsAssemblyScheduling() {
 				}
 			}
 		}
-
 		time.Sleep(time.Minute * 1)
 	}
 }
@@ -272,16 +271,16 @@ func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]
 	return metrics, nil
 }
 
-func (s *ProfileService) GetTop(ctx context.Context, filter domain.ProfileMetrics_GetTopFilter, amount int) ([]*domain.ProfileEnity, error) {
+func (s *ProfileService) GetTop(ctx context.Context, sort domain.ProfileMetrics_GetTopSort, amount int) ([]*domain.ProfileEnity, error) {
 	const op = "services.ProfileService.GetTop"
-	cachedTopProfilesID := fmt.Sprintf("top_profiles_%s", string(filter))
+	cachedTopProfilesID := fmt.Sprintf("top_profiles_%s", string(sort))
 
 	var topProfiles []*domain.ProfileEnity
 
 	if cachedTopProfiles, ok := s.cache.Get(cachedTopProfilesID); ok {
 		topProfiles = cachedTopProfiles.([]*domain.ProfileEnity)
 	} else {
-		list, err := s.repoProfileMetrics.GetTop(ctx, filter, amount)
+		list, err := s.repoProfileMetrics.GetTop(ctx, sort, amount)
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
