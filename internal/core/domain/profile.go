@@ -6,7 +6,7 @@ import (
 )
 
 type ProfileEnity struct {
-	ID            int       `db:"id" json:"-"`
+	ID            uint64    `db:"id" json:"-"`
 	ShedevrumID   string    `db:"shedevrum_id" json:"shedevrum_id"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 	Link          string    `db:"link" json:"link"`
@@ -18,7 +18,7 @@ type ProfileEnity struct {
 }
 
 type ProfileMetricsCollectorEntity struct {
-	ID                    int       `db:"id" json:"-"`
+	ID                    uint64    `db:"id" json:"-"`
 	CreatedAt             time.Time `db:"created_at" json:"created_at"`
 	ProfileHandledTotal   uint64    `db:"profile_handled_total" json:"profile_handled_total"`
 	ProfileHandledSuccess uint64    `db:"profile_handled_success" json:"profile_handled_success"`
@@ -32,13 +32,13 @@ const (
 )
 
 type ProfileCollectorEntity struct {
-	ID              int                            `db:"id" json:"-"`
+	ID              uint8                          `db:"id" json:"-"`
 	CollectorType   ProfileCollector_CollectorType `db:"collector_type" json:"collector_type"`
 	LastCollectedAt sql.NullTime                   `db:"last_collected_at" json:"last_collected_at"`
 }
 
 type ProfileMetricsEntity struct {
-	ProfileID     int       `db:"profile_id" json:"-"`
+	ProfileID     uint64    `db:"profile_id" json:"-"`
 	ShedevrumID   string    `db:"shedevrum_id" json:"shedevrum_id"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 	Subscriptions uint64    `db:"subscriptions" json:"subscriptions"`

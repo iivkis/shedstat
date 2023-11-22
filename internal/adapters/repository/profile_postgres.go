@@ -54,7 +54,7 @@ func (r *ProfilePostgresRepository) GetByShedevrumID(ctx context.Context, shedev
 	return &p, nil
 }
 
-func (r *ProfilePostgresRepository) GetList(ctx context.Context, startFromID int, amount int) ([]*domain.ProfileEnity, error) {
+func (r *ProfilePostgresRepository) GetList(ctx context.Context, startFromID uint64, amount int) ([]*domain.ProfileEnity, error) {
 	q := `SELECT * FROM profile WHERE id > $1 LIMIT $2`
 	var profiles []*domain.ProfileEnity
 	err := r.db.SelectContext(ctx, &profiles, q, startFromID, amount)

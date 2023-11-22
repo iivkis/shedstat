@@ -19,7 +19,7 @@ import (
 /*
 	/profile/:id
 	/profile/:id/metrics
-	/top?filter=[subscriptions,subscibers,likes]&amount[0-100]
+	/top/profiles?filter=[subscriptions,subscibers,likes]&amount[0-100]
 */
 
 func main() {
@@ -64,7 +64,9 @@ func main() {
 
 	router := chi.NewRouter()
 	router.Use(newCorsHandler())
-	handlers.NewProfileHTTPHandler(svcProfile).Setup(router)
+	router.Route("/api/v1/", func(r chi.Router) {
+		handlers.NewProfileHTTPHandler(svcProfile).Setup(r)
+	})
 
 	fmt.Println("server is up")
 	if err := http.ListenAndServe(":80", router); err != nil {

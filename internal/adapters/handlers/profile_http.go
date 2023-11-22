@@ -21,12 +21,13 @@ func NewProfileHTTPHandler(svc *services.ProfileService) *ProfileHTTPHandler {
 	}
 }
 
-func (h *ProfileHTTPHandler) Setup(r *chi.Mux) {
+func (h *ProfileHTTPHandler) Setup(r chi.Router) {
 	r.Route("/profile", func(r chi.Router) {
 		r.Post("/", h.Create)
 		r.Get("/{id}", h.GetByShedevrumID)
 		r.Get("/{id}/metrics", h.GetMetrics)
 	})
+	r.Get("/top/profiles", h.GetTop)
 }
 
 type ProfileCreateBody struct {
@@ -81,4 +82,12 @@ func (h *ProfileHTTPHandler) GetTop(w http.ResponseWriter, r *http.Request) {
 
 	var filter domain.ProfileMetrics_GetTopFilter
 	filter.Scan(qFilter)
+
+	profiles, err := h.svc.GetTop(r.Context(), filter, 100)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(profiles)
 }

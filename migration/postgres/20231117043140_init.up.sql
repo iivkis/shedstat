@@ -12,7 +12,7 @@ CREATE TABLE profile_collector (
     last_collected_at TIMESTAMP
 );
 
-INSERT INTO profile_collector (profile_collector_type) VALUES ('feed_top_day');
+INSERT INTO profile_collector (collector_type) VALUES ('feed_top_day');
 
 CREATE TABLE profile_metrics_collector (
     id BIGSERIAL NOT NULL PRIMARY KEY,

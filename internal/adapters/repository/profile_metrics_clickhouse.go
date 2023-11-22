@@ -78,8 +78,14 @@ func (r *ProfileMetricsClickHouseRepository) GetTop(ctx context.Context, filter 
 	metrics := make([]*domain.ProfileMetricsEntity, amount)
 	for rows.Next() {
 		m := &domain.ProfileMetricsEntity{}
-		err := rows.Scan(&m.ProfileID, &m.ShedevrumID, &m.Subscriptions, &m.Subscribers, &m.Likes)
-		if err != nil {
+		if err := rows.Scan(
+			&m.ProfileID,
+			&m.ShedevrumID,
+			&m.Subscriptions,
+			&m.Subscribers,
+			&m.Likes,
+			&m.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		metrics = append(metrics, m)

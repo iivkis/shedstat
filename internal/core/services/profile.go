@@ -85,7 +85,7 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Pro
 
 	var (
 		queue             = make(chan struct{}, 10)
-		startFromID       int
+		startFromID       uint64
 		socialStats       []*domain.ProfileMetricsEntity
 		metricSheduleStat domain.ProfileMetricsCollectorEntity
 	)
@@ -252,7 +252,7 @@ func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID strin
 	return profile, nil
 }
 
-func (s *ProfileService) GetList(ctx context.Context, startFromID int, amount int) ([]*domain.ProfileEnity, error) {
+func (s *ProfileService) GetList(ctx context.Context, startFromID uint64, amount int) ([]*domain.ProfileEnity, error) {
 	const op = "services.ProfileService.GetList"
 	profiles, err := s.repoProfile.GetList(ctx, startFromID, amount)
 	if err != nil {

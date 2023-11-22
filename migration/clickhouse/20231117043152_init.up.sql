@@ -1,5 +1,5 @@
 CREATE TABLE profile_metrics (
-    profile_id INT,
+    profile_id UInt64,
     shedevrum_id VARCHAR(255),
     subscriptions UInt64,
     subscribers UInt64,
