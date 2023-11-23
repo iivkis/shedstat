@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"shedstat/internal/adapters/repository"
 	"shedstat/internal/core/domain"
 	shedevrumapi "shedstat/pkg/shedevrum-api"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,7 +41,7 @@ func NewProfileService(
 		repoProfileMetrics:          repoProfileMetrics,
 		repoProfileMetricsCollector: repoProfileMetricsCollector,
 		shedAPI:                     shedAPI,
-		cache:                       cache.New(time.Hour, time.Minute*30),
+		cache:                       cache.New(time.Hour, time.Minute),
 	}
 	svc.runSchedulers()
 	return svc
@@ -83,10 +83,10 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Pro
 	s.logger.Info("run_social_stats_collector", "op", op)
 
 	var (
-		queue             = make(chan struct{}, 10)
-		startFromID       uint64
-		socialStats       []*domain.ProfileMetricsEntity
-		metricSheduleStat domain.ProfileMetricsCollectorEntity
+		queue          = make(chan struct{}, 15)
+		startFromID    uint64
+		socialStats    []*domain.ProfileMetricsEntity
+		collectorStats domain.ProfileMetricsCollectorEntity
 	)
 	defer close(queue)
 
@@ -115,15 +115,15 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Pro
 
 				queue <- struct{}{}
 
-				atomic.AddUint64(&metricSheduleStat.ProfileHandledTotal, 1)
+				atomic.AddUint64(&collectorStats.ProfileHandledTotal, 1)
 
-				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID, "collected", atomic.LoadUint64(&metricSheduleStat.ProfileHandledTotal))
+				s.logger.Info("get_profile_social_stats", "op", op, "shedevrum_id", p.ShedevrumID, "collected", atomic.LoadUint64(&collectorStats.ProfileHandledTotal))
 				stat, err := s.shedAPI.Users.GetSocialStats(p.ShedevrumID)
 				if err != nil {
-					atomic.AddUint64(&metricSheduleStat.ProfileHandledBad, 1)
+					atomic.AddUint64(&collectorStats.ProfileHandledBad, 1)
 					s.logger.Error(err.Error(), "op", op)
 				} else {
-					atomic.AddUint64(&metricSheduleStat.ProfileHandledSuccess, 1)
+					atomic.AddUint64(&collectorStats.ProfileHandledSuccess, 1)
 					socialStats = append(socialStats, &domain.ProfileMetricsEntity{
 						ProfileID:     p.ID,
 						ShedevrumID:   p.ShedevrumID,
@@ -143,7 +143,7 @@ func (s *ProfileService) profileMetricsCollect(ctx context.Context) (*domain.Pro
 		}
 	}
 
-	return &metricSheduleStat, nil
+	return &collectorStats, nil
 }
 
 func (s *ProfileService) profilesAssemblyScheduling() {
@@ -188,6 +188,70 @@ func (s *ProfileService) topDayProfilesCollect() {
 	}
 }
 
+func (s *ProfileService) cacheSetRemoteUser(user *shedevrumapi.UserEntity) {
+	s.cache.Set("remote_user_"+user.ID, user, cache.DefaultExpiration)
+}
+
+func (s *ProfileService) cacheGetRemoteUser(userID string) (*shedevrumapi.UserEntity, bool) {
+	if u, ok := s.cache.Get("remote_user_" + userID); ok {
+		return u.(*shedevrumapi.UserEntity), true
+	}
+	return nil, false
+}
+
+func (s *ProfileService) cacheSetRemoteSocialStats(userID string, stats *shedevrumapi.UsersGetSocialStats) {
+	s.cache.Set("remote_social_stats_"+userID, stats, cache.DefaultExpiration)
+}
+
+func (s *ProfileService) cacheGetRemoteSocialStats(userID string) (*shedevrumapi.UsersGetSocialStats, bool) {
+	if stats, ok := s.cache.Get("remote_social_stats_" + userID); ok {
+		return stats.(*shedevrumapi.UsersGetSocialStats), true
+	}
+	return nil, false
+}
+
+func (s *ProfileService) cacheSetShedevrumIDByUsertag(usertag string, shedevrumID string) {
+	s.cache.Set("usertag_"+usertag, shedevrumID, cache.DefaultExpiration)
+}
+
+func (s *ProfileService) cacheGetShedevrumIDByUsertag(usertag string) (string, bool) {
+	if shedevrumID, ok := s.cache.Get("usertag_" + usertag); ok {
+		return shedevrumID.(string), true
+	}
+	return "", false
+}
+
+func (s *ProfileService) cacheSetTopProfiles(profiles []*domain.ProfileEnity, sort domain.ProfileMetrics_GetTopSort) {
+	s.cache.Set("top_profiles_"+string(sort), profiles, cache.DefaultExpiration)
+}
+
+func (s *ProfileService) cacheGetTopProfiles(sort domain.ProfileMetrics_GetTopSort) ([]*domain.ProfileEnity, bool) {
+	if top, ok := s.cache.Get("top_profiles_" + string(sort)); ok {
+		return top.([]*domain.ProfileEnity), true
+	}
+	return nil, false
+}
+
+func (s *ProfileService) shedevrumIDNormalize(shedevrumID string) (string, error) {
+	const op = "services.ProfileService.shedevrumIDNormalize"
+
+	if strings.HasPrefix(shedevrumID, "@") {
+		if cachedShedevrumID, ok := s.cacheGetShedevrumIDByUsertag(shedevrumID); ok {
+			shedevrumID = cachedShedevrumID
+		} else {
+			remoteFeed, err := s.shedAPI.Users.GetFeed(shedevrumID, 0, "")
+			if err != nil {
+				s.logger.Error(err.Error(), "op", op)
+				return "", err
+			}
+			s.cacheSetRemoteUser(&remoteFeed.User)
+			s.cacheSetShedevrumIDByUsertag(shedevrumID, remoteFeed.User.ID)
+			shedevrumID = remoteFeed.User.ID
+		}
+	}
+	return shedevrumID, nil
+}
+
 func (s *ProfileService) Create(ctx context.Context, shedevrumID string) error {
 	const op = "services.ProfileService.Create"
 	if err := s.repoProfile.Create(ctx, shedevrumID); err != nil {
@@ -210,43 +274,50 @@ func (s *ProfileService) Get(ctx context.Context, id int) (*domain.ProfileEnity,
 func (s *ProfileService) GetByShedevrumID(ctx context.Context, shedevrumID string) (*domain.ProfileEnity, error) {
 	const op = "services.ProfileService.GetByShedevrumID"
 
+	shedevrumID, err := s.shedevrumIDNormalize(shedevrumID)
+	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil, err
+	}
+
 	profile, err := s.repoProfile.GetByShedevrumID(ctx, shedevrumID)
 	if err != nil {
 		s.logger.Error(err.Error(), "op", op)
 		return nil, err
 	}
 
-	cachedProfileID := fmt.Sprintf("profile_%s", profile.ShedevrumID)
-
-	if cachedProfile, ok := s.cache.Get(cachedProfileID); ok {
-		p := cachedProfile.(*domain.ProfileEnity)
-		profile.Name = p.Name
-		profile.AvatarURL = p.AvatarURL
-		profile.Link = p.Link
-		profile.Subscriptions = p.Subscriptions
-		profile.Subscribers = p.Subscribers
-		profile.Likes = p.Likes
+	var remoteUser *shedevrumapi.UserEntity
+	if chachedRemoteUser, ok := s.cacheGetRemoteUser(shedevrumID); ok {
+		remoteUser = chachedRemoteUser
 	} else {
-		remoteProfile, err := s.shedAPI.Users.GetFeed(shedevrumID, 0, "")
+		remoteFeed, err := s.shedAPI.Users.GetFeed(shedevrumID, 0, "")
 		if err != nil {
 			s.logger.Error(err.Error(), "op", op)
 			return nil, err
 		}
-		profile.Name = remoteProfile.User.DisplayName
-		profile.AvatarURL = remoteProfile.User.AvatartURL
-		profile.Link = remoteProfile.User.ShareLink
-
-		remoteSocialStats, err := s.shedAPI.Users.GetSocialStats(shedevrumID)
-		if err != nil {
-			s.logger.Error(err.Error(), "op", op)
-			return nil, err
-		}
-		profile.Subscriptions = remoteSocialStats.Subscriptions
-		profile.Subscribers = remoteSocialStats.Subscribers
-		profile.Likes = remoteSocialStats.Likes
-
-		s.cache.Set(cachedProfileID, profile, 0)
+		s.cacheSetRemoteUser(&remoteFeed.User)
+		remoteUser = &remoteFeed.User
 	}
+
+	var remoteSocialStats *shedevrumapi.UsersGetSocialStats
+	if chachedRemoteSocialStats, ok := s.cacheGetRemoteSocialStats(shedevrumID); ok {
+		remoteSocialStats = chachedRemoteSocialStats
+	} else {
+		stats, err := s.shedAPI.Users.GetSocialStats(shedevrumID)
+		if err != nil {
+			s.logger.Error(err.Error(), "op", op)
+			return nil, err
+		}
+		s.cacheSetRemoteSocialStats(shedevrumID, stats)
+		remoteSocialStats = stats
+	}
+
+	profile.Name = remoteUser.DisplayName
+	profile.AvatarURL = remoteUser.AvatartURL
+	profile.Link = remoteUser.ShareLink
+	profile.Subscriptions = remoteSocialStats.Subscriptions
+	profile.Subscribers = remoteSocialStats.Subscribers
+	profile.Likes = remoteSocialStats.Likes
 
 	return profile, nil
 }
@@ -263,7 +334,12 @@ func (s *ProfileService) GetList(ctx context.Context, startFromID uint64, amount
 
 func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]*domain.ProfileMetricsEntity, error) {
 	const op = "services.ProfileService.GetMetrics"
-	metrics, err := s.repoProfileMetrics.GetByShedevrumID(shedevrumID)
+	profile, err := s.GetByShedevrumID(ctx, shedevrumID)
+	if err != nil {
+		s.logger.Error(err.Error(), "op", op)
+		return nil, err
+	}
+	metrics, err := s.repoProfileMetrics.GetByShedevrumID(profile.ShedevrumID)
 	if err != nil {
 		s.logger.Error(err.Error(), "op", op)
 		return nil, err
@@ -273,12 +349,11 @@ func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]
 
 func (s *ProfileService) GetTop(ctx context.Context, sort domain.ProfileMetrics_GetTopSort, amount int) ([]*domain.ProfileEnity, error) {
 	const op = "services.ProfileService.GetTop"
-	cachedTopProfilesID := fmt.Sprintf("top_profiles_%s", string(sort))
 
-	var topProfiles []*domain.ProfileEnity
+	var profiles []*domain.ProfileEnity
 
-	if cachedTopProfiles, ok := s.cache.Get(cachedTopProfilesID); ok {
-		topProfiles = cachedTopProfiles.([]*domain.ProfileEnity)
+	if cachedProfiles, ok := s.cacheGetTopProfiles(sort); ok {
+		profiles = cachedProfiles
 	} else {
 		list, err := s.repoProfileMetrics.GetTop(ctx, sort, amount)
 		if err != nil {
@@ -286,7 +361,7 @@ func (s *ProfileService) GetTop(ctx context.Context, sort domain.ProfileMetrics_
 			return nil, err
 		}
 
-		topProfiles = make([]*domain.ProfileEnity, len(list))
+		profiles = make([]*domain.ProfileEnity, len(list))
 		wg, queue := &sync.WaitGroup{}, make(chan struct{}, 15)
 
 		wg.Add(len(list))
@@ -302,13 +377,13 @@ func (s *ProfileService) GetTop(ctx context.Context, sort domain.ProfileMetrics_
 					s.logger.Error(err.Error(), "op", op)
 					profile = &domain.ProfileEnity{}
 				}
-				topProfiles[i] = profile
+				profiles[i] = profile
 			}(i, p)
 		}
 		wg.Wait()
 
-		s.cache.Set(cachedTopProfilesID, topProfiles, 0)
+		s.cacheSetTopProfiles(profiles, sort)
 	}
 
-	return topProfiles, nil
+	return profiles, nil
 }
