@@ -10,8 +10,8 @@ export interface IProfile {
     likes: number
 }
 
-export interface IMetricsChart {
-    date: string
+export interface IProfileMetrics {
+    created_at: string
     subscriptions: number
     subscribers: number
     likes: number
