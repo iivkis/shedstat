@@ -55,14 +55,14 @@ func (s *ProfileService) runSchedulers() {
 func (s *ProfileService) profileMetricsAssemblyScheduling() {
 	const op = "services.ProfileService.profileMetricsAssemblyScheduling"
 	for {
-		lastMetricShedule, err := s.repoProfileMetricsCollector.GetLast(context.Background())
+		lastCollection, err := s.repoProfileMetricsCollector.GetLast(context.Background())
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				s.logger.Error(err.Error(), "op", op)
 				continue
 			}
 		}
-		if errors.Is(err, sql.ErrNoRows) || lastMetricShedule.CreatedAt.Add(time.Hour*12).Before(time.Now()) {
+		if errors.Is(err, sql.ErrNoRows) || lastCollection.CreatedAt.Add(time.Hour*12).Before(time.Now()) {
 			metricShedule, err := s.profileMetricsCollect(context.Background())
 			if err != nil {
 				s.logger.Error(err.Error(), "op", op)
