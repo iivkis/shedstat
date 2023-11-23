@@ -334,12 +334,12 @@ func (s *ProfileService) GetList(ctx context.Context, startFromID uint64, amount
 
 func (s *ProfileService) GetMetrics(ctx context.Context, shedevrumID string) ([]*domain.ProfileMetricsEntity, error) {
 	const op = "services.ProfileService.GetMetrics"
-	profile, err := s.GetByShedevrumID(ctx, shedevrumID)
+	shedevrumID, err := s.shedevrumIDNormalize(shedevrumID)
 	if err != nil {
 		s.logger.Error(err.Error(), "op", op)
 		return nil, err
 	}
-	metrics, err := s.repoProfileMetrics.GetByShedevrumID(profile.ShedevrumID)
+	metrics, err := s.repoProfileMetrics.GetByShedevrumID(shedevrumID)
 	if err != nil {
 		s.logger.Error(err.Error(), "op", op)
 		return nil, err
